@@ -1,0 +1,189 @@
+
+package com.example.canvas// <-- Fix this with Alt+Enter if it's red!
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+// 1. A Data Class to remember each line's path, color, and thickness
+data class DrawLine(
+    val path: Path,
+    val color: Color,
+    val strokeWidth: Float
+)
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MaterialTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color(0xFFF5F5F5) // Light gray background behind the canvas
+                ) {
+                    DrawingScreen()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DrawingScreen() {
+    // State variables to remember what the user is doing
+    val lines = remember { mutableStateListOf<DrawLine>() }
+    var currentColor by remember { mutableStateOf(Color.Black) }
+    var currentBrushSize by remember { mutableFloatStateOf(15f) }
+
+    // Variables for the current line being drawn
+    var currentPath by remember { mutableStateOf<Path?>(null) }
+    var drawTrigger by remember { mutableIntStateOf(0) } // Used to force the screen to update
+
+    // A list of cool colors for our palette
+    val colorPalette = listOf(
+        Color.Black,
+        Color.Red,
+        Color(0xFF4CAF50), // Green
+        Color.Blue,
+        Color(0xFFFFEB3B), // Yellow
+        Color(0xFF9C27B0)  // Purple
+    )
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // --- TOP TOOLBAR ---
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Canvas Pro", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+
+                Row {
+                    Button(
+                        onClick = { if (lines.isNotEmpty()) lines.removeLast() },
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        Text("Undo")
+                    }
+                    Button(
+                        onClick = { lines.clear() },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    ) {
+                        Text("Clear")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Color Palette Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                colorPalette.forEach { color ->
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .border(
+                                width = 3.dp,
+                                color = if (currentColor == color) Color.Gray else Color.Transparent,
+                                shape = CircleShape
+                            )
+                            .clickable { currentColor = color }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Brush Size Slider
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Brush Size: ", fontWeight = FontWeight.SemiBold)
+                Slider(
+                    value = currentBrushSize,
+                    onValueChange = { currentBrushSize = it },
+                    valueRange = 5f..80f, // From pencil thin to thick marker
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        // --- DRAWING CANVAS ---
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .clip(MaterialTheme.shapes.medium)
+                .background(Color.White)
+                // This handles all the touch dragging!
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            // When finger touches down, start a new path
+                            val newPath = Path().apply { moveTo(offset.x, offset.y) }
+                            currentPath = newPath
+                            lines.add(DrawLine(newPath, currentColor, currentBrushSize))
+                            drawTrigger++ // Force update
+                        },
+                        onDrag = { change, _ ->
+                            // When finger moves, draw a line to the new position
+                            change.consume()
+                            currentPath?.lineTo(change.position.x, change.position.y)
+                            drawTrigger++ // Force update
+                        },
+                        onDragEnd = {
+                            // When finger lifts up, stop the path
+                            currentPath = null
+                        }
+                    )
+                }
+        ) {
+            // Actually draw the paths onto the screen
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawTrigger // Tell Compose to watch this variable for changes
+
+                lines.forEach { line ->
+                    drawPath(
+                        path = line.path,
+                        color = line.color,
+                        style = Stroke(
+                            width = line.strokeWidth,
+                            cap = StrokeCap.Round,  // Makes the ends of the lines smooth
+                            join = StrokeJoin.Round // Makes corners smooth
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
