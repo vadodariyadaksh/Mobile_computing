@@ -1,0 +1,116 @@
+package com.example.emicalc
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlin.math.pow
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MaterialTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    EmiCalculatorApp()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EmiCalculatorApp() {
+    // These variables "remember" what the user types
+    var principal by remember { mutableStateOf("") }
+    var rate by remember { mutableStateOf("") }
+    var time by remember { mutableStateOf("") }
+    var result by remember { mutableStateOf("Monthly EMI: ₹0.00") }
+
+    // Column arranges our UI elements vertically
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Loan EMI Calculator", 
+            fontSize = 24.sp, 
+            modifier = Modifier.padding(bottom = 32.dp)
+        )
+
+        // Principal Input
+        OutlinedTextField(
+            value = principal,
+            onValueChange = { principal = it },
+            label = { Text("Principal Amount (₹)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+        )
+
+        // Interest Rate Input
+        OutlinedTextField(
+            value = rate,
+            onValueChange = { rate = it },
+            label = { Text("Annual Interest Rate (%)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+        )
+
+        // Tenure Input
+        OutlinedTextField(
+            value = time,
+            onValueChange = { time = it },
+            label = { Text("Tenure (in Years)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+        )
+
+        // Calculate Button
+        Button(
+            onClick = {
+                // Convert text to numbers safely
+                val p = principal.toDoubleOrNull()
+                val rAnnual = rate.toDoubleOrNull()
+                val tYears = time.toDoubleOrNull()
+
+                if (p != null && rAnnual != null && tYears != null) {
+                    val r = rAnnual / 12 / 100 // Monthly interest
+                    val n = tYears * 12        // Total months
+
+                    val emi = if (r == 0.0) {
+                        p / n
+                    } else {
+                        p * r * ((1 + r).pow(n)) / (((1 + r).pow(n)) - 1)
+                    }
+                    result = "Monthly EMI: ₹%.2f".format(emi)
+                } else {
+                    result = "Please enter valid numbers"
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(50.dp)
+        ) {
+            Text("Calculate EMI", fontSize = 18.sp)
+        }
+
+        // Result Display
+        Text(
+            text = result,
+            fontSize = 22.sp,
+            modifier = Modifier.padding(top = 32.dp)
+        )
+    }
+}
